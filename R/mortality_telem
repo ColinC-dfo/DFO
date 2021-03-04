@@ -1,0 +1,27 @@
+# Needs a dataframe with a column named "Distance" and arranged by datetime.
+
+# The function starts at the most recent telemetry detections and works backwards
+# looking for the last "movement" (detection on another receiver). The returned value 
+# isn't the real deathtime, as the fish may still be alive, but it helps to clean 
+# up the data. 
+
+# For fish that are still alive, and moving the estimated deathTime will be close to the 
+# most recent download time from the receivers. Otherwise it will extract the last time a 
+# fish showed a "movement" based on the telemetry detections
+
+deathDate = function(dataframe){
+  test = NULL
+  x = dataframe$Distance
+  for(i in 1:length(x)){
+    test[i] = mean(x[(length(x) - i):length(x)], na.rm = TRUE)
+    if(test[i] > 0){
+      i = i-1
+      break
+    } else if(all(test == 0)){
+      i = length(x)-1
+    }
+  }
+  deathTime = dataframe$Date[(length(x)-i)]
+  return(deathTime)
+}
+
