@@ -67,7 +67,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   
   array <- as.data.frame(array) 
   names(array) = c("X","Y")
-  inp = GEOmap::inpoly(array$X, array$Y, POK = list(x = boundary$X, y = boundary$Y))
+  inp <- GEOmap::inpoly(array$X, array$Y, POK = list(x = boundary$X, y = boundary$Y))
   array <- array[inp == 1,]
   
   # array %>% 
@@ -78,23 +78,23 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   #   geom_point(data = as.data.frame(locs), aes(V1, V2), col = 2)
   
   
-  bound = as.matrix(boundary[,c("X","Y")])
+  bound <- as.matrix(boundary[,c("X","Y")])
   
   nodeFillingOutput <- nodeFill(poly = bound,
                                 node_spacing = 5000,
                                 hole_list = holes)
   rast1 <- nodeFillingOutput$nodes
   
-  p = ppp(rast1[,1], rast1[,2], poly = list(x = boundary$X, y = boundary$Y))
+  p <- ppp(rast1[,1], rast1[,2], poly = list(x = boundary$X, y = boundary$Y))
   # You need to convert your shp data to spatstat segment pattern object. 
   # To do so, you can load the shp file with commands from
   # maptools and than convert into a spatstat object:
   
   # To calculate your nearest neighbour distance, you have to use nncross
-  Sl1 = Line(boundary[,c("X","Y")])
-  S1 = Lines(list(Sl1), ID="boundary")
-  Sl = SpatialLines(list(S1))
-  shp = as.psp(Sl) 
+  Sl1 <- Line(boundary[,c("X","Y")])
+  S1 <- Lines(list(Sl1), ID="boundary")
+  Sl <- SpatialLines(list(S1))
+  shp <- as.psp(Sl) 
   
   rast1 <- cbind(rast1, nncross(p, shp)/1000)
   rast1 <- rast1[,c(1,2,3)]
@@ -105,7 +105,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   
   # DO NOT FUCKING DELETE THIS COLIN
   lakeDist <- data.frame(Y = seq(min(boundary$Y), max(boundary$Y), by = northInd))
-  lakeDist$index = 1:nrow(lakeDist)
+  lakeDist$index <- 1:nrow(lakeDist)
   # Interpolation on the raster northing UTM coordinates
   index <- approx(lakeDist$Y, lakeDist$index, xout = rast1[,2], method = "linear")$y
   rast1 <- cbind(rast1, index)
@@ -127,10 +127,10 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
     bind_rows(., bound)
   
   # do a check to see if any points fall outside the Lake Winnipeg boundary
-  inp = GEOmap::inpoly(d2$X, d2$Y, POK = list(x = boundary$X, y = boundary$Y))
+  inp <- GEOmap::inpoly(d2$X, d2$Y, POK = list(x = boundary$X, y = boundary$Y))
   
   # remove all points outside the lake
-  d2 = d2[inp == 1,]
+  d2 <- d2[inp == 1,]
   
   # plot it
   # ggplot(d2, aes(X, Y, col = Depth)) + geom_point() + 
@@ -158,13 +158,13 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   rasters[[2]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,4]))
   
   
-  landscape<-dim(0) #empty matrix for landscape variables
+  landscape <- dim(0) #empty matrix for landscape variables
   ##transform resight locations to landscape variables; also extract landscape variables to grid array
   for (r in 1:length(rasters)){ ##for each raster layer
     landscape <- cbind(landscape, raster::extract(rasters[[r]], 
                                                   locs[,1:2], na.rm = F,
                                                   method = 'bilinear')) ##calculate the raster values at locs
-    array<-cbind(array, raster::extract(rasters[[r]], array[,1:2],
+    array <- cbind(array, raster::extract(rasters[[r]], array[,1:2],
                                         na.rm = F, method = 'bilinear'))##add raster values to array
   }
   if (length(is.na(landscape[,1])) > length(landscape)/2) {
@@ -187,7 +187,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   z <- density.array/sum(density.array, na.rm = TRUE) ##make array sum to one
   array <- cbind(array, z) 
   ##make a matrix of array points that are within the 90% probability kernel
-  array.order<-array[order(array[,dim(array)[2]], decreasing = TRUE),]
+  array.order <- array[order(array[,dim(array)[2]], decreasing = TRUE),]
   
   if (exists('percent')) {
     percent <- percent/100
@@ -213,8 +213,8 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   HR.poly <- rasterToPolygons(HR.rast, n = 16, na.rm = T, digits = 4, dissolve = T)
   
   ##remove polygons that are 4 pixels or smaller
-  s<-"polyID"
-  HR.polys<-list(0)
+  s <- "polyID"
+  HR.polys <- list(0)
   pr <- 0
   area <- 0
   for (p in 1:length(HR.poly@polygons[[1]]@Polygons)) {
