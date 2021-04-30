@@ -204,9 +204,9 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   }
   
   ##create a raster layer of the grid array with probability values
-  HR.grid<-rasterFromXYZ(cbind(array[,1:2],array[,dim(array)[2]]))
+  HR.grid <- rasterFromXYZ(cbind(array[,1:2],array[,dim(array)[2]]))
   ##create a raster layer of the grid array points within the 90% kernel
-  HR.rast<-rasterFromXYZ(cbind(HRpoints[,1:2],rep(1,dim(HRpoints)[1])), res=abs(seq.y[1]-seq.y[2]))
+  HR.rast <- rasterFromXYZ(cbind(HRpoints[,1:2],rep(1,dim(HRpoints)[1])), res=abs(seq.y[1]-seq.y[2]))
   ##define the area of tiny fragment polygons (4 pixels or smaller)
   min.poly.size <- 4*((HR.rast@extent@xmax-HR.rast@extent@xmin)/HR.rast@ncols)^2
   ##convert HR.rast to polygons, which denote the permissible home range
@@ -219,7 +219,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   area <- 0
   for (p in 1:length(HR.poly@polygons[[1]]@Polygons)) {
     if (HR.poly@polygons[[1]]@Polygons[[p]]@area > min.poly.size) {
-      pr < -pr+1
+      pr <- pr + 1
       HR.polys[[pr]] <- HR.poly@polygons[[1]]@Polygons[[p]]
       area <- area + HR.poly@polygons[[1]]@Polygons[[p]]@area/1000^2
       # area <- area + area(as.data.frame(HR.poly@polygons[[1]]@Polygons[[p]]@coords))/1000^2
