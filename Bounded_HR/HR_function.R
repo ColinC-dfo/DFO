@@ -78,6 +78,8 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   #   geom_point(data = as.data.frame(locs), aes(V1, V2), col = 2)
   
   
+  
+  
   bound <- as.matrix(boundary[,c("X","Y")])
   
   nodeFillingOutput <- nodeFill(poly = bound,
@@ -132,6 +134,30 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   # remove all points outside the lake
   d2 <- d2[inp == 1,]
   
+  # check to see if a point falls outside the lake or inside and island polygon (an invalid point)
+  # if so, add some randomness to the point to make it a valid point
+  for(i in 1:nrow(data)){
+    inp = 0
+    while(inp == 0){
+      inp1 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
+                             POK = list(x = boundary$X, y = boundary$Y))
+      inp2 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
+                             POK = list(x = holes[[1]]$X, y = holes[[1]]$Y))
+      inp3 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
+                             POK = list(x = holes[[2]]$X, y = holes[[2]]$Y))
+      inp4 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
+                             POK = list(x = holes[[3]]$X, y = holes[[3]]$Y))
+      inp5 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
+                             POK = list(x = holes[[4]]$X, y = holes[[4]]$Y))
+      if(inp1 == 0 | any(c(inp2, inp3, inp4, inp4) == 1)){
+        data$Lon.utm[i] = data$Lon.utm[i] + runif(1, -1000, 1000)
+        data$Lat.utm[i] = data$Lat.utm[i] + runif(1, -1000, 1000)
+      } else{
+        inp = 1
+      }
+    }
+  }
+  
   # plot it
   # ggplot(d2, aes(X, Y, col = Depth)) + geom_point() + 
   #   geom_point(data = as.data.frame(rast1), aes(x, y), col = 1)
@@ -165,7 +191,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
                                                   locs[,1:2], na.rm = F,
                                                   method = 'bilinear')) ##calculate the raster values at locs
     array <- cbind(array, raster::extract(rasters[[r]], array[,1:2],
-                                        na.rm = F, method = 'bilinear'))##add raster values to array
+                                          na.rm = F, method = 'bilinear'))##add raster values to array
   }
   if (length(is.na(landscape[,1])) > length(landscape)/2) {
     print('Warning: Raster layers do not cover the extent of the location data')
