@@ -38,7 +38,9 @@ nodeFill <- function (poly, node_spacing, hole_list = NULL){
 
 bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
                      holes = list(black2, reindeer2, deer2, com2), percent = 95,
-                     northInd = 10000, bathymetry = depth){
+                     northInd = 10000, bathymetry = depth, rast1 = rast, 
+                     sediment = sed, sed_type = "Type 4",
+                     SEDIMENT = TRUE, NORTHING = TRUE, DEPTH = TRUE){
   
   
   locs <- cbind(data$Lon.utm, data$Lat.utm)
@@ -51,10 +53,10 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   min.y <- min(locs[,2]) - 5000
   max.y <- max(locs[,2]) + 5000
   ##create coordinates for grid array (used to back-translate kde estimate)
-  size = size
+  size <- size
   seq.x <- seq(min.x, max.x, (max.x-min.x)/size)
   seq.y <- seq(min.y, max.y, (max.x-min.x)/size)
-  array<-dim(0)
+  array <- dim(0)
   for (a in 1:length(seq.x)){
     array <- rbind(array, cbind(rep(seq.x[a],length(seq.y)), seq.y))
   }
@@ -67,47 +69,12 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   
   array <- as.data.frame(array) 
   names(array) = c("X","Y")
-  inp <- GEOmap::inpoly(array$X, array$Y, POK = list(x = boundary$X, y = boundary$Y))
+  inp = GEOmap::inpoly(array$X, array$Y, POK = list(x = boundary$X, y = boundary$Y))
   array <- array[inp == 1,]
   
-  # array %>% 
-  #   # head %>% 
-  #   ggplot(data = .) + 
-  #   geom_point(aes(X, Y)) + 
-  #   geom_polygon(data = LWpg2, aes(X, Y), col = 1, fill = NA) +
-  #   geom_point(data = as.data.frame(locs), aes(V1, V2), col = 2)
-  
-  
-  
-  
-  bound <- as.matrix(boundary[,c("X","Y")])
-  
-  nodeFillingOutput <- nodeFill(poly = bound,
-                                node_spacing = 5000,
-                                hole_list = holes)
-  rast1 <- nodeFillingOutput$nodes
-  
-  p <- ppp(rast1[,1], rast1[,2], poly = list(x = boundary$X, y = boundary$Y))
-  # You need to convert your shp data to spatstat segment pattern object. 
-  # To do so, you can load the shp file with commands from
-  # maptools and than convert into a spatstat object:
-  
-  # To calculate your nearest neighbour distance, you have to use nncross
-  Sl1 <- Line(boundary[,c("X","Y")])
-  S1 <- Lines(list(Sl1), ID="boundary")
-  Sl <- SpatialLines(list(S1))
-  shp <- as.psp(Sl) 
-  
-  rast1 <- cbind(rast1, nncross(p, shp)/1000)
-  rast1 <- rast1[,c(1,2,3)]
-  
-  rast1 <- rast1 %>% 
-    as.data.frame() %>% 
-    as.matrix()
-  
   # DO NOT FUCKING DELETE THIS COLIN
-  lakeDist <- data.frame(Y = seq(min(boundary$Y), max(boundary$Y), by = northInd))
-  lakeDist$index <- 1:nrow(lakeDist)
+  lakeDist <- data.frame(Y = seq(min(rast1[,2]), max(boundary$Y), by = northInd))
+  lakeDist$index = 1:nrow(lakeDist)
   # Interpolation on the raster northing UTM coordinates
   index <- approx(lakeDist$Y, lakeDist$index, xout = rast1[,2], method = "linear")$y
   rast1 <- cbind(rast1, index)
@@ -120,6 +87,8 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
     as.data.frame() %>% 
     mutate(Depth = 0)
   
+  # ggplot(bound, aes(X, Y)) + geom_polygon()
+  
   # randomly select 5000 data pointd from the bathymetry dataframe to make this run more
   # quickly (I wouldn't go much more than 10k points for efficiency)
   d2 <- bathymetry %>% 
@@ -129,69 +98,65 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
     bind_rows(., bound)
   
   # do a check to see if any points fall outside the Lake Winnipeg boundary
-  inp <- GEOmap::inpoly(d2$X, d2$Y, POK = list(x = boundary$X, y = boundary$Y))
+  inp = GEOmap::inpoly(d2$X, d2$Y, POK = list(x = boundary$X, y = boundary$Y))
   
   # remove all points outside the lake
-  d2 <- d2[inp == 1,]
-  
-  # check to see if a point falls outside the lake or inside and island polygon (an invalid point)
-  # if so, add some randomness to the point to make it a valid point
-  for(i in 1:nrow(data)){
-    inp = 0
-    while(inp == 0){
-      inp1 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
-                             POK = list(x = boundary$X, y = boundary$Y))
-      inp2 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
-                             POK = list(x = holes[[1]]$X, y = holes[[1]]$Y))
-      inp3 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
-                             POK = list(x = holes[[2]]$X, y = holes[[2]]$Y))
-      inp4 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
-                             POK = list(x = holes[[3]]$X, y = holes[[3]]$Y))
-      inp5 <- GEOmap::inpoly(data$Lon.utm[i], data$Lat.utm[i],
-                             POK = list(x = holes[[4]]$X, y = holes[[4]]$Y))
-      if(inp1 == 0 | any(c(inp2, inp3, inp4, inp4) == 1)){
-        data$Lon.utm[i] = data$Lon.utm[i] + runif(1, -1000, 1000)
-        data$Lat.utm[i] = data$Lat.utm[i] + runif(1, -1000, 1000)
-      } else{
-        inp = 1
-      }
-    }
-  }
-  
-  # plot it
-  # ggplot(d2, aes(X, Y, col = Depth)) + geom_point() + 
-  #   geom_point(data = as.data.frame(rast1), aes(x, y), col = 1)
-  
+  d2 = d2[inp == 1,]
+
   # interpolate the depth of the lake across the lake
   res <- interp::interp(x = d2$X, y = d2$Y, z = d2$Depth,
                         xo = as.vector(rast1[,1]), yo = as.vector(rast1[,2]),
                         duplicate = "strip", output = "points")
   
   # make the interpolated data a dataframe and then plot to see the output
-  res = data.frame(x = res$x, y = res$y, z = res$z)
-  
-  # NOTE: this is not correct for the north basin b/c we don't have any data 
-  # up there for this exercise (but the home range should only be calculated for
-  # areas that we have data)
-  # ggplot(res, aes(x, y, col = z)) + geom_point()
+  res <- data.frame(x = res$x, y = res$y, z = res$z)
+
+  ###
+  #
+  ### add columns to the raster
+  #
+  ###
   
   rast1 <- cbind(rast1, res$z)
   
-  rasters<-list(0)
-  # Interpolated Depth where fish was located (5th column)
-  rasters[[1]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,5]))
-  # This one is the indicator for northing across the lake (4th column in rast1)
-  rasters[[2]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,4]))
+  # select the column of sediment that you'd like to analyze
+  col_num <- which(names(sediment) == sed_type)
   
+  rast1 <- cbind(rast1, sediment[,col_num])
+  
+  ###
+  #
+  ### build the raster layers
+  #
+  ###
+  
+  rasters <- NULL
+  
+  if(DEPTH == TRUE){
+    # Interpolated Depth where fish was located (5th column)
+    rasters[[length(rasters)+1]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,5]))
+  }
+  if(NORTHING == TRUE){
+    # This one is the indicator for northing across the lake (4th column in rast1)
+    rasters[[length(rasters)+1]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,4]))
+    
+  }
+
+  if(SEDIMENT == TRUE){
+    # add the sediment layer
+    rasters[[length(rasters)+1]] <- rasterFromXYZ(cbind(rast1[,1], rast1[,2], rast1[,6]))
+  }
+
   
   landscape <- dim(0) #empty matrix for landscape variables
-  ##transform resight locations to landscape variables; also extract landscape variables to grid array
+  ##transform resight locations to landscape variables; 
+  # also extract landscape variables to grid array
   for (r in 1:length(rasters)){ ##for each raster layer
     landscape <- cbind(landscape, raster::extract(rasters[[r]], 
                                                   locs[,1:2], na.rm = F,
                                                   method = 'bilinear')) ##calculate the raster values at locs
-    array <- cbind(array, raster::extract(rasters[[r]], array[,1:2],
-                                          na.rm = F, method = 'bilinear'))##add raster values to array
+    array<-cbind(array, raster::extract(rasters[[r]], array[,1:2],
+                                        na.rm = F, method = 'bilinear'))##add raster values to array
   }
   if (length(is.na(landscape[,1])) > length(landscape)/2) {
     print('Warning: Raster layers do not cover the extent of the location data')
@@ -230,9 +195,9 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   }
   
   ##create a raster layer of the grid array with probability values
-  HR.grid <- rasterFromXYZ(cbind(array[,1:2],array[,dim(array)[2]]))
+  HR.grid<-rasterFromXYZ(cbind(array[,1:2],array[,dim(array)[2]]))
   ##create a raster layer of the grid array points within the 90% kernel
-  HR.rast <- rasterFromXYZ(cbind(HRpoints[,1:2],rep(1,dim(HRpoints)[1])), res=abs(seq.y[1]-seq.y[2]))
+  HR.rast<-rasterFromXYZ(cbind(HRpoints[,1:2],rep(1,dim(HRpoints)[1])), res=abs(seq.y[1]-seq.y[2]))
   ##define the area of tiny fragment polygons (4 pixels or smaller)
   min.poly.size <- 4*((HR.rast@extent@xmax-HR.rast@extent@xmin)/HR.rast@ncols)^2
   ##convert HR.rast to polygons, which denote the permissible home range
@@ -251,7 +216,6 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
       # area <- area + area(as.data.frame(HR.poly@polygons[[1]]@Polygons[[p]]@coords))/1000^2
     }
   }
-  
   
   HR.polys <- Polygons(HR.polys, ID = s) #convert to polygons object
   HR.polys <- checkPolygonsHoles(HR.polys) #assign holes correctly
