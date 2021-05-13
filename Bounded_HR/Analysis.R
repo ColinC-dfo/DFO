@@ -1,15 +1,16 @@
 
 
-
-
-
-
-
 rm(list = ls())
-
 
 # Make sure all the files are in the same folder,
 #and then change your working directory here
+setwd("~/Charles/Nicole")
+
+#####
+#
+###  1. loads in the functions from GitHub
+#
+#####
 
 devtools::source_url("https://raw.githubusercontent.com/ColinC-dfo/DFO/master/Bounded_HR/HR_function.R")
 devtools::source_url("https://raw.githubusercontent.com/ColinC-dfo/DFO/master/Bounded_HR/create_rast.R")
@@ -17,8 +18,11 @@ devtools::source_url("https://raw.githubusercontent.com/ColinC-dfo/DFO/master/Bo
 devtools::source_url("https://raw.githubusercontent.com/ColinC-dfo/DFO/master/Bounded_HR/makeCircles.R")
 
 
-setwd("~/Charles/Nicole")
-
+#####
+#
+### 2. load packages, set plot defaults, add function
+#
+#####
 
 require(tidyverse)
 require(sp)
@@ -43,10 +47,11 @@ peek <- function(x){
 }
 
 
-# source("HR Function.R")
-
-
-#### Read in bathymetry data for Lake Winnipeg
+#####
+#
+### 3. Read in bathymetry data for Lake Winnipeg
+#
+#####
 
 depth = readr::read_csv("Cluster5_Bathymetry_20191029.csv") %>% 
   dplyr::filter(BottomTypeStatus == "Valid") %>% 
@@ -62,12 +67,19 @@ attr(d2,"projection") = "LL"
 d2 = PBSmapping::convUL(d2, km = F)
 
 
-# bund the UTM colmns back onto the depth data frame
+# bind the UTM colmns back onto the depth data frame
 depth = bind_cols(depth, d2)
 
+# check out a preview of the data
 peek(depth)
 
 
+
+#####
+#
+### 4. Lake geospatial data
+#
+#####
 
 # Read in the Lake Winnipeg Data shoreline and island polygon data using read_csv()
 LWpg = readr::read_csv("LakeWpgOutline.csv") %>% 
@@ -123,17 +135,10 @@ reindeer = readr::read_csv("Reindeer Isle.csv")
 black = readr::read_csv("Black Isle.csv") 
 
 
-
-
-
-
 # 
 LWdata = read_sf('~/Charles/Nicole/Mapping/LW_Red.shp')
 # as.data.frame()
 ggplot() + geom_sf(data = LWdata) + coord_sf(ylim = c(5555000, 5600000))
-
-# df = read_sf('~/Charles/Nicole/Mapping/LW_Red.shp') %>%
-#   as.data.frame()
 
 df <- as.data.frame(LWdata$geometry[[1]][[1]])
 names(df) = c("X","Y")
@@ -186,28 +191,51 @@ ggplot(sf_poly) +
 # # convUL will automatically detect what UTM zone you are in based on the coordinates
 # PBSmapping::convUL(yy, km = F)
 
+
+#####
+#
+### 5. Read in sediment data
+#
+#####
+
 sediments = readr::read_csv("~/Tyana/Cluster5_Bathymetry_20191029.csv") %>% 
   dplyr::filter(BottomTypeStatus == "Valid") %>% 
   dplyr::select(Long = Longitude_deg, Lat = Latitude_deg, 
                 Depth = BottomElevation_m, BottomType)
 
 
+
+#####
+#
+### 6. Start of Analysis
+###    Create the raster grid and then predict the proportion of each sediment 
+###    at each location
+#
+#####
+
 rast1 <- create_rast()
 # takes a minute or 2
 sed <- estimate_sediments(sediments, radius = 3)
 
 
-# Read in data from Nicole (daily positions)
-
+#####
+#
+###  7. Read in data from Nicole (daily positions)
+#
+#####
 migrantCOAlocs <- readr::read_csv("migrantCOAlocs.csv")
 
-##
+# Add a little bit of error to the positions to remove duplicates (maybe not needed now??)
 migrantCOAlocs$Lon.utm <- migrantCOAlocs$Lon.utm + runif(nrow(migrantCOAlocs), -500, 500)
 migrantCOAlocs$Lat.utm <- migrantCOAlocs$Lat.utm + runif(nrow(migrantCOAlocs), -500, 500)
 
-# migfall2017test <- migrantCOAlocs
 
 
+#####
+#
+### 8. Subsample the data for a single fish and time step for testing
+#
+##### 
 
 dat <- migrantCOAlocs %>% 
   as.data.frame %>% 
@@ -224,15 +252,27 @@ dat <- migrantCOAlocs %>%
   dplyr::filter(ID == "120_2018-08-01")
 
 
+# Plot the data
 ggplot(dat, aes(Lon.utm, Lat.utm)) + geom_point(col = 2) + 
   geom_polygon(data = LWpg2, aes(X,Y), fill = NA, col = 1)
 
+# Sediment types
 # sed_type = data.frame(Type = paste("Type", 1:5),
 #                       Val = c(2,1,4,3,5),
 #                       Des = c("Silt","Clay-Fine","Gravel","Sand","Hard Bottom"),
 #                       stringsAsFactors = FALSE)
+
+
+# Create the raster again for the function 
 rast1 <- create_rast()
-# sed <- estimate_sediments(sediments)
+
+
+#####
+#
+### 9. Run the function for the subsamples data. You can choose whether to include
+#      sediments, depth or a northing indicator in the analysis
+#
+#####
 
 HR <- bound_HR(dat, boundary = LWpg2,  smoother = "default",
                # smoother = cbind(c(0.001,0), c(0,0.1)),
