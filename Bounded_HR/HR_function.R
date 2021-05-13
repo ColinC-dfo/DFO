@@ -83,6 +83,7 @@ bound_HR <- function(data, size = 50, smoother = "default", boundary = NULL,
   
   ## bound is just a copy of our lake Winnipeg shoreline polygon with coordinates in UTM
   # make bound a data frame and then convert the "depth" of the shoreline to zero
+  bound = as.matrix(boundary[,c("X","Y")])
   bound <- bound %>% 
     as.data.frame() %>% 
     mutate(Depth = 0)
